@@ -13,13 +13,13 @@ const budgetController = (function () {
         this.value = value;
     };
 
-    const calculateTotal = function (type){
-       
+    const calculateTotal = function (type) {
+
         let sum = 0;
-         data.allItems[type].forEach((val)=> sum += val.value);
+        data.allItems[type].forEach((val) => sum += val.value);
         data.totals[type] = sum;
-       
-        
+
+
     };
 
     let data = {
@@ -31,8 +31,8 @@ const budgetController = (function () {
             exp: 0,
             inc: 0
         },
-        budget : 0,
-        percentage :-1,
+        budget: 0,
+        percentage: -1,
     };
 
     return {
@@ -56,23 +56,38 @@ const budgetController = (function () {
             return newItem;
         },
 
-        calculateBudget: function (){
+        deleteItem: function (type, id) {
+
+             id = parseInt(id);
+            const arr = data.allItems[type];
+
+            const ids = arr.map(el => el.id);
+            const index = ids.indexOf(id);
+
+            if (index !== -10) {
+                arr.splice(index, 1);
+            }
+
+           
+        },
+
+        calculateBudget: function () {
 
             //1. sum of all income  and expenses
             calculateTotal('inc');
             calculateTotal('exp');
-            
+
             // 2. calculate budget : income - expenses
             data.budget = data.totals.inc - data.totals.exp;
-            
+
             //3. calculate the percentage
 
             data.percentage = Math.round((data.totals.exp / data.totals.inc) * 100);
         },
 
-        getBudget: function (){
+        getBudget: function () {
             return {
-                budget : data.budget,
+                budget: data.budget,
                 totalInc: data.totals.inc,
                 totalExp: data.totals.exp,
                 percentage: data.percentage
@@ -100,10 +115,11 @@ const UIController = (function () {
         btn: '.add__btn',
         incomeContainer: '.income__list',
         expensesContainer: '.expenses__list',
-        budgetLabel : '.budget__value',
-        incomeLabel : '.budget__income--value',
-        expensesLabel : '.budget__expenses--value',
-        percentageLabel : '.budget__expenses--percentage'
+        budgetLabel: '.budget__value',
+        incomeLabel: '.budget__income--value',
+        expensesLabel: '.budget__expenses--value',
+        percentageLabel: '.budget__expenses--percentage',
+        container: '.container'
     };
 
 
@@ -127,7 +143,7 @@ const UIController = (function () {
 
             //Based on the type we decide what the html will be
             let htmlSting = type === 'inc' ?
-                `<div class="item clearfix" id="income-${obj.id}">
+                `<div class="item clearfix" id="inc-${obj.id}">
                     <div class="item__description">${obj.description}</div>
                     <div class="right clearfix">
                         <div class="item__value">${obj.value}</div>
@@ -137,7 +153,7 @@ const UIController = (function () {
                     </div>
                 </div>`
                 :
-                `<div class="item clearfix" id="expense-${obj.id}">
+                `<div class="item clearfix" id="exp-${obj.id}">
                     <div class="item__description">${obj.description}</div>
                         <div class="right clearfix">
                          <div class="item__value">- ${obj.value}</div>
@@ -164,6 +180,10 @@ const UIController = (function () {
 
         },
 
+        deleteListItem: function (element){
+            element.parentNode.removeChild(element);
+        },
+
         clearFiel: function () {
             const fields = document.querySelectorAll(DomStrings.inputDescription + ',' + DomStrings.inputValue);
             /*↑ this will return a nodeList not an array but we can use the forEach method
@@ -178,17 +198,17 @@ const UIController = (function () {
 
         },
 
-        displayBudget : function(obj){
-                document.querySelector(DomStrings.budgetLabel).textContent = obj.budget;
-                document.querySelector(DomStrings.expensesLabel).textContent = obj.totalExp;
-                document.querySelector(DomStrings.incomeLabel).textContent = obj.totalInc;
+        displayBudget: function (obj) {
+            document.querySelector(DomStrings.budgetLabel).textContent = obj.budget;
+            document.querySelector(DomStrings.expensesLabel).textContent = obj.totalExp;
+            document.querySelector(DomStrings.incomeLabel).textContent = obj.totalInc;
 
-                if(obj.percentage >0){
-                    document.querySelector(DomStrings.percentageLabel).textContent = obj.percentage + '%';
-                } else{
-                    document.querySelector(DomStrings.percentageLabel).textContent = '---';
+            if (obj.percentage > 0) {
+                document.querySelector(DomStrings.percentageLabel).textContent = obj.percentage + '%';
+            } else {
+                document.querySelector(DomStrings.percentageLabel).textContent = '---';
 
-                }
+            }
 
         },
 
@@ -217,6 +237,8 @@ const controller = (function (budgetCtrl, UICtrl) {
                 ctrlAddItem();
             }
         });
+
+        document.querySelector(DOM.container).addEventListener('click', ctrlDeleteItem)
     };
 
     const updateBudget = function () {
@@ -257,13 +279,41 @@ const controller = (function (budgetCtrl, UICtrl) {
         console.log('yey')
     }
 
+    const ctrlDeleteItem = function (event) {
+
+        /*path is an array in the event object, it starts whith 
+        the clicked item and it arrives to the windows trought event bubbling.
+        */
+        let elementContainer = event.path[4];
+
+        /* we take the id of the element and split it in two
+            ex: inc-0 => ['inc','0'] 
+            the first element is the type the second the id 
+        */
+        const type = elementContainer.id.split('-')[0];
+        const id = elementContainer.id.split('-')[1];
+       
+        if (id) {
+            
+            //  DELETE THE ITEM FROM THE DATA STRUCTURE
+            budgetCtrl.deleteItem(type, id);
+
+            // DELETE THE ITEM FROM THE UI
+            UICtrl.deleteListItem(elementContainer);
+
+            //UPDATE THE BUDGET WITH THE NEW DATA
+            updateBudget();
+        }
+
+    };
+
     return {
         init: function () {
             console.log('App Started');
             UICtrl.displayBudget({
-                budget : 0,
-                totalInc:0,
-                totalExp:0,
+                budget: 0,
+                totalInc: 0,
+                totalExp: 0,
                 percentage: -1
             });
 
