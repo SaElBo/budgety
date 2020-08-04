@@ -1,16 +1,49 @@
 ////////////////////////  BUDGET CONTROLLER  ///////////////////////////////
 const budgetController = (function () {
 
-    const Expense = function (id, description, value) {
-        this.id = id;
-        this.description = description;
-        this.value = value;
+        
+    class BudgetItem {
+        constructor(id, description, value) {
+            this.id = id;
+            this.description = description;
+            this.value = value;
+        }
+
+
     };
 
-    const Income = function (id, description, value) {
-        this.id = id;
-        this.description = description;
-        this.value = value;
+    class Expense extends BudgetItem {
+        constructor(id, description, value) {
+            super(id, description, value);
+
+            this.type = 'exp'
+            this.percentage = -1;
+        }
+
+        calcPercentage (totalIncome){
+            if (totalIncome > 0) {
+                this.percentage = Math.round((this.value / totalIncome) * 100);
+                } else {
+                this.percentage = -1;
+                }
+        }
+
+        getPercentage (){
+
+            return this.percentage;
+            };
+    };
+
+       
+
+        
+
+    class Income extends BudgetItem {
+        constructor(id, description, value) {
+            super(id, description, value);
+
+            this.type = 'inc'
+        }
     };
 
     const calculateTotal = function (type) {
@@ -21,6 +54,8 @@ const budgetController = (function () {
 
 
     };
+
+    //data stucture
 
     let data = {
         allItems: {
@@ -35,6 +70,8 @@ const budgetController = (function () {
         percentage: -1,
     };
 
+    //public metods
+
     return {
         addItem: function (type, des, val) {
             let newItem, id;
@@ -46,7 +83,7 @@ const budgetController = (function () {
 
 
 
-            // Create a new Item object dased on the type the user selected
+            // Create a new Item object based on the type the user selected
             type === 'inc' ? newItem = new Income(id, des, val)
                 : newItem = new Expense(id, des, val);
 
@@ -58,7 +95,7 @@ const budgetController = (function () {
 
         deleteItem: function (type, id) {
 
-             id = parseInt(id);
+            id = parseInt(id);
             const arr = data.allItems[type];
 
             const ids = arr.map(el => el.id);
@@ -68,7 +105,7 @@ const budgetController = (function () {
                 arr.splice(index, 1);
             }
 
-           
+
         },
 
         calculateBudget: function () {
@@ -85,6 +122,23 @@ const budgetController = (function () {
             data.percentage = Math.round((data.totals.exp / data.totals.inc) * 100);
         },
 
+        calculatePercentages: function() {
+            
+            
+            data.allItems.exp.forEach((cur) =>
+               cur.calcPercentage(data.totals.inc)
+            );
+        },
+        
+        
+        
+        getPercentages: function() {
+            var allPerc = data.allItems.exp.map(function(cur) {
+                return cur.getPercentage();
+            });
+            return allPerc;
+        },
+
         getBudget: function () {
             return {
                 budget: data.budget,
@@ -96,6 +150,7 @@ const budgetController = (function () {
         //testing function
         testing: function () {
             console.log(data);
+
         }
     }
 
@@ -123,6 +178,9 @@ const UIController = (function () {
     };
 
 
+
+
+
     //Public Function
     return {
         getInput: function () {
@@ -138,6 +196,7 @@ const UIController = (function () {
         },
 
         addListItem: function (obj, type) {
+
 
             // html string
 
@@ -166,21 +225,18 @@ const UIController = (function () {
 
 
             //insert html into the dom
-
+            // based on the type we insert the html list in the expense or in the income container
             const expenses = document.querySelector(DomStrings.expensesContainer);
             const income = document.querySelector(DomStrings.incomeContainer);
-
-            // based on the type we insert the html list in the expense or in the income container
 
             type === 'inc' ?
                 income.insertAdjacentHTML('beforeend', htmlSting)
                 : expenses.insertAdjacentHTML('beforeend', htmlSting);
 
 
-
         },
 
-        deleteListItem: function (element){
+        deleteListItem: function (element) {
             element.parentNode.removeChild(element);
         },
 
@@ -219,7 +275,7 @@ const UIController = (function () {
 })();
 
 
-////////////////////////////////// APP CONTROLLER ///////////////////////////////
+//////////////////////////////// APP CONTROLLER ///////////////////////////////
 
 const controller = (function (budgetCtrl, UICtrl) {
 
@@ -249,7 +305,20 @@ const controller = (function (budgetCtrl, UICtrl) {
         const budget = budgetCtrl.getBudget();
         // 3.display the budget on the UI
         UICtrl.displayBudget(budget);
-    }
+    };
+
+     const updatePercentages = function() {
+        
+        // 1. Calculate percentages
+        budgetCtrl.calculatePercentages();
+        
+        // 2. Read percentages from the budget controller
+        var percentages = budgetCtrl.getPercentages();
+        
+        // 3. Update the UI with the new percentages
+        // UICtrl.displayPercentages(percentages);
+        console.log(percentages)
+    };
 
 
 
@@ -272,6 +341,8 @@ const controller = (function (budgetCtrl, UICtrl) {
             // 5.  CALCULATE AND UPDATE BUDGET
             updateBudget();
 
+            updatePercentages();
+
         }
 
 
@@ -283,8 +354,12 @@ const controller = (function (budgetCtrl, UICtrl) {
 
         /*path is an array in the event object, it starts whith 
         the clicked item and it arrives to the windows trought event bubbling.
+
+        let elementContainer = event.path[4] NON SUPPORTATO SU FIREFOX :(
         */
-        let elementContainer = event.path[4];
+      
+       
+        let elementContainer = event.target.parentNode.parentNode.parentNode.parentNode;
 
         /* we take the id of the element and split it in two
             ex: inc-0 => ['inc','0'] 
@@ -292,9 +367,9 @@ const controller = (function (budgetCtrl, UICtrl) {
         */
         const type = elementContainer.id.split('-')[0];
         const id = elementContainer.id.split('-')[1];
-       
+
         if (id) {
-            
+
             //  DELETE THE ITEM FROM THE DATA STRUCTURE
             budgetCtrl.deleteItem(type, id);
 
@@ -303,6 +378,8 @@ const controller = (function (budgetCtrl, UICtrl) {
 
             //UPDATE THE BUDGET WITH THE NEW DATA
             updateBudget();
+
+            
         }
 
     };
@@ -327,3 +404,5 @@ const controller = (function (budgetCtrl, UICtrl) {
 
 
 controller.init();
+
+
